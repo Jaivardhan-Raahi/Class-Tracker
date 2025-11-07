@@ -6,7 +6,7 @@ from datetime import datetime, timedelta
 st.set_page_config(page_title="Class Tracker", layout="wide")
 
 # -------------------------
-# In-memory initial data
+# Initialize Data
 # -------------------------
 if "class_data" not in st.session_state:
     st.session_state.class_data = {
@@ -40,7 +40,7 @@ if "class_data" not in st.session_state:
 # Helpers
 # -------------------------
 def timetable_to_df():
-    """Flatten the nested dict into a DataFrame with columns Day, Subject, Teacher, Time."""
+    """Convert dictionary to DataFrame."""
     rows = []
     for day, classes in st.session_state.class_data.items():
         for c in classes:
@@ -50,37 +50,28 @@ def timetable_to_df():
                 "Teacher": c.get("teacher", ""),
                 "Time": c.get("time", "")
             })
-    df = pd.DataFrame(rows)
-    # Keep stable ordering
-    if not df.empty:
-        df = df[["Day", "Subject", "Teacher", "Time"]]
-    else:
-        df = pd.DataFrame(columns=["Day", "Subject", "Teacher", "Time"])
-    return df
+    return pd.DataFrame(rows, columns=["Day", "Subject", "Teacher", "Time"])
 
 def add_class(day, subject, teacher, time_str):
-    if day not in st.session_state.class_data:
-        st.session_state.class_data[day] = []
-    st.session_state.class_data[day].append({"subject": subject, "teacher": teacher, "time": time_str})
+    st.session_state.class_data[day].append(
+        {"subject": subject, "teacher": teacher, "time": time_str}
+    )
     st.success(f"Added: {subject} on {day} at {time_str}")
     st.rerun()
 
 def delete_class(day, index):
-    try:
+    if 0 <= index < len(st.session_state.class_data[day]):
         st.session_state.class_data[day].pop(index)
         if not st.session_state.class_data[day]:
             del st.session_state.class_data[day]
-    except Exception:
-        pass
-    st.rerun()
+        st.rerun()
 
 # -------------------------
-# UI: Sidebar - Add Class & Filters
+# Sidebar (Add + Filter)
 # -------------------------
 st.sidebar.header("➕ Add New Class")
 
 day_choices = sorted(list(st.session_state.class_data.keys()))
-# allow new day creation
 new_day = st.sidebar.selectbox("Day", options=day_choices)
 new_subject = st.sidebar.text_input("Subject")
 new_teacher = st.sidebar.text_input("Teacher")
@@ -93,53 +84,75 @@ if st.sidebar.button("Add Class"):
         st.sidebar.error("Fill all fields to add a class.")
 
 st.sidebar.markdown("---")
-st.sidebar.header("🔍 Filters (affect Timetable & Download)")
+st.sidebar.header("🔍 Filters")
 
-# Build options for filters safely (deduplicate)
-df_full = timetable_to_df()
-all_days = ["All"] + sorted(df_full["Day"].unique().tolist())
-all_subjects = ["All"] + sorted(df_full["Subject"].unique().tolist())
-all_teachers = ["All"] + sorted(df_full["Teacher"].unique().tolist())
+df_all = timetable_to_df()
+days = ["All"] + sorted(df_all["Day"].unique().tolist())
+subjects = ["All"] + sorted(df_all["Subject"].unique().tolist())
+teachers = ["All"] + sorted(df_all["Teacher"].unique().tolist())
 
-selected_day = st.sidebar.selectbox("Day", options=all_days, index=0)
-selected_subject = st.sidebar.selectbox("Subject", options=all_subjects, index=0)
-selected_teacher = st.sidebar.selectbox("Teacher", options=all_teachers, index=0)
+f_day = st.sidebar.selectbox("Day", days)
+f_subject = st.sidebar.selectbox("Subject", subjects)
+f_teacher = st.sidebar.selectbox("Teacher", teachers)
 
 # -------------------------
-# Main: Tabs
+# Tabs
 # -------------------------
-tab1, tab2, tab3 = st.tabs(["🏠 Dashboard", "📅 Timetable", "📤 Download & Export"])
+tab1, tab2, tab3 = st.tabs(["🏠 Dashboard", "📅 Timetable", "📤 Download CSV"])
 
-# --- Dashboard Tab ---
+# -------------------------
+# Dashboard
+# -------------------------
 with tab1:
-    st.header("Upcoming (Next 7 Days by Weekday)")
-    # compute list of names for next 7 calendar days (weekday names)
+    st.header("Upcoming Classes (Next 7 Days)")
     today = datetime.today()
     next_7 = [(today + timedelta(days=i)).strftime("%A") for i in range(7)]
+
     found = False
-    for weekday in next_7:
-        entries = st.session_state.class_data.get(weekday, [])
-        if entries:
+    for day in next_7:
+        if day in st.session_state.class_data and st.session_state.class_data[day]:
             found = True
-            st.subheader(f"{weekday}")
-            rows = []
-            for i, e in enumerate(entries):
-                rows.append({"Subject": e["subject"], "Teacher": e["teacher"], "Time": e["time"], "index": i})
-            df_display = pd.DataFrame(rows).drop(columns=["index"])
-            st.table(df_display)
-            # Allow deletion per entry
-            cols = st.columns(len(entries))
-            for i, e in enumerate(entries):
-                if st.button(f"Delete {weekday} - {e['subject']}", key=f"del_{weekday}_{i}"):
-                    delete_class(weekday, i)
+            st.subheader(day)
+            st.table(pd.DataFrame(st.session_state.class_data[day]))
+            for i, cls in enumerate(st.session_state.class_data[day]):
+                if st.button(f"🗑 Delete {cls['subject']} ({day})", key=f"del_{day}_{i}"):
+                    delete_class(day, i)
     if not found:
-        st.info("No classes scheduled in the upcoming 7 days.")
+        st.info("No upcoming classes in the next 7 days.")
 
     st.markdown("---")
-    st.subheader("Quick Search by Day")
-    q = st.text_input("Enter day name (e.g., Monday)")
-    if q:
-        q_name = q.strip().capitalize()
-        if q_name in st.session_state.class_data:
-            st.write(f"Classes on {q_name}:")
-            st.table(pd.DataFrame(st.sess
+    st.subheader("Search Classes by Day")
+    search_day = st.text_input("Enter day (e.g. Monday)")
+    if search_day:
+        d = search_day.strip().capitalize()
+        if d in st.session_state.class_data:
+            st.table(pd.DataFrame(st.session_state.class_data[d]))
+        else:
+            st.warning("No classes found for that day.")
+
+# -------------------------
+# Timetable
+# -------------------------
+with tab2:
+    st.header("Full Weekly Timetable")
+    df = timetable_to_df()
+
+    if f_day != "All":
+        df = df[df["Day"] == f_day]
+    if f_subject != "All":
+        df = df[df["Subject"] == f_subject]
+    if f_teacher != "All":
+        df = df[df["Teacher"] == f_teacher]
+
+    if df.empty:
+        st.info("No data for selected filters.")
+    else:
+        st.dataframe(df.reset_index(drop=True), use_container_width=True)
+
+# -------------------------
+# CSV Download
+# -------------------------
+with tab3:
+    st.header("Download Timetable")
+    df = timetable_to_df()
+    if
