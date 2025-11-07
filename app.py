@@ -1,7 +1,7 @@
 import streamlit as st
 import pandas as pd
 import json
-from datetime import datetime, time
+from datetime import datetime, time, timedelta
 
 # -------------------------------
 # CONFIG
@@ -10,7 +10,7 @@ st.set_page_config(page_title="Class Tracker", layout="wide")
 DATA_FILE = "class_data.json"
 
 # -------------------------------
-# LOAD OR CREATE LOCAL DATA
+# LOAD OR CREATE DATA
 # -------------------------------
 def load_data():
     try:
@@ -40,69 +40,76 @@ def save_data(data):
         json.dump(data, f, indent=4)
 
 # -------------------------------
-# UTILITY FUNCTIONS
+# HELPER FUNCTIONS
 # -------------------------------
 def get_upcoming_classes(data):
-    """Find upcoming classes from now until the end of the week."""
-    today_name = datetime.now().strftime("%A")
-    now = datetime.now().time()
+    """Show next 7 days of classes from current time."""
+    now = datetime.now()
+    today_idx = now.weekday()  # Monday=0
 
-    # Maintain weekday order
     day_order = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"]
-    current_idx = day_order.index(today_name)
+    upcoming = []
 
-    rows = []
-    for idx, day in enumerate(day_order):
-        if day not in data:
+    for offset in range(7):  # next 7 days window
+        check_date = now + timedelta(days=offset)
+        day_name = check_date.strftime("%A")
+        if day_name not in data:
             continue
-        for cls in data[day]:
-            cls_time = datetime.strptime(cls["time"], "%H:%M").time()
-            # Same day, only show future classes
-            if idx == current_idx and cls_time >= now:
-                rows.append({"day": day, **cls})
-            # Later days
-            elif idx > current_idx:
-                rows.append({"day": day, **cls})
 
-    if not rows:
+        for cls in data[day_name]:
+            cls_time = datetime.strptime(cls["time"], "%H:%M").time()
+            class_datetime = datetime.combine(check_date.date(), cls_time)
+
+            # Only show classes in the future
+            if class_datetime >= now:
+                upcoming.append({
+                    "day": day_name,
+                    "date": check_date.strftime("%Y-%m-%d"),
+                    "subject": cls["subject"],
+                    "time": cls["time"],
+                    "teacher": cls["teacher"],
+                })
+
+    if not upcoming:
         return pd.DataFrame()
-    df = pd.DataFrame(rows)
-    df["sort_index"] = df["day"].apply(lambda x: day_order.index(x))
-    df["time_obj"] = pd.to_datetime(df["time"], format="%H:%M")
-    df = df.sort_values(["sort_index", "time_obj"]).drop(columns=["sort_index", "time_obj"])
+    df = pd.DataFrame(upcoming)
+    df["datetime"] = pd.to_datetime(df["date"] + " " + df["time"])
+    df = df.sort_values("datetime").drop(columns=["datetime"])
     return df.reset_index(drop=True)
 
+
 def search_classes(data, day):
-    """Return all classes for a given day name."""
+    """Return all classes for the given day name."""
     if not day:
         return pd.DataFrame()
     day = day.strip().capitalize()
     if day in data and len(data[day]) > 0:
-        return pd.DataFrame(data[day])
+        df = pd.DataFrame(data[day])
+        df["day"] = day
+        return df
     return pd.DataFrame()
 
 # -------------------------------
-# APP BODY
+# MAIN APP
 # -------------------------------
 st.title("📚 Class Tracker Dashboard")
 data = load_data()
 
-# Layout: two columns
 col1, col2 = st.columns([3, 2])
 
 # -------------------------------
 # UPCOMING CLASSES
 # -------------------------------
 with col1:
-    st.subheader("⏰ Upcoming Classes")
+    st.subheader("⏰ Upcoming Classes (Next 7 Days)")
     upcoming_df = get_upcoming_classes(data)
     if upcoming_df.empty:
-        st.info("No upcoming classes found for the rest of the week.")
+        st.info("No upcoming classes in the next 7 days.")
     else:
         st.dataframe(upcoming_df, use_container_width=True)
 
 # -------------------------------
-# SEARCH CLASSES
+# SEARCH BY DAY
 # -------------------------------
 with col2:
     st.subheader("🔍 Search by Day")
@@ -122,7 +129,9 @@ st.markdown("---")
 st.subheader("📝 Add a New Class")
 
 with st.form("add_class_form"):
-    day = st.selectbox("Day", ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"])
+    day = st.selectbox(
+        "Day", ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"]
+    )
     subject = st.text_input("Subject Name")
     time_input = st.time_input("Class Time", value=time(9, 0))
     teacher = st.text_input("Teacher Name")
@@ -137,7 +146,7 @@ with st.form("add_class_form"):
         st.success(f"✅ Added {subject} on {day} at {time_input.strftime('%H:%M')}")
 
 # -------------------------------
-# FULL TIMETABLE
+# VIEW FULL TIMETABLE
 # -------------------------------
 with st.expander("📋 View Full Timetable"):
     for day, classes in data.items():
