@@ -1,67 +1,45 @@
 import streamlit as st
 import pandas as pd
-import json
 from datetime import datetime, timedelta, time
 
 st.set_page_config(page_title="📚 Class Tracker", layout="wide")
-DATA_FILE = "class_data.json"
+
+# --------------------------
+# INITIAL DATA (stored in memory)
+# --------------------------
+if "class_data" not in st.session_state:
+    st.session_state.class_data = {
+        "2025-11-07": [
+            {"subject": "Math", "time": "09:00", "teacher": "Mr. Sharma"},
+            {"subject": "Physics", "time": "11:00", "teacher": "Mrs. Verma"},
+        ],
+        "2025-11-08": [
+            {"subject": "Chemistry", "time": "10:00", "teacher": "Mr. Singh"},
+        ],
+    }
+
+data = st.session_state.class_data
 
 
 # --------------------------
-# DATA FUNCTIONS
+# HELPER FUNCTIONS
 # --------------------------
-def load_data():
-    try:
-        with open(DATA_FILE, "r") as f:
-            return json.load(f)
-    except FileNotFoundError:
-        default_data = {
-            "2025-11-07": [
-                {"subject": "Math", "time": "09:00", "teacher": "Mr. Sharma"},
-                {"subject": "Physics", "time": "11:00", "teacher": "Mrs. Verma"},
-            ],
-            "2025-11-08": [
-                {"subject": "Chemistry", "time": "10:00", "teacher": "Mr. Singh"},
-            ],
-        }
-        with open(DATA_FILE, "w") as f:
-            json.dump(default_data, f, indent=4)
-        return default_data
-
-
-def save_data(data):
-    with open(DATA_FILE, "w") as f:
-        json.dump(data, f, indent=4)
-
-
-# --------------------------
-# HELPERS
-# --------------------------
-def is_valid_date(date_str: str) -> bool:
-    """Check if string can be parsed as a valid date (YYYY-MM-DD)."""
-    try:
-        datetime.strptime(date_str, "%Y-%m-%d")
-        return True
-    except Exception:
-        return False
-
-
 def get_upcoming_classes(data):
     now = datetime.now()
     upcoming = []
 
     for date_str, classes in data.items():
-        if not is_valid_date(date_str):
-            # skip legacy keys like "Monday"
+        try:
+            date_obj = datetime.strptime(date_str, "%Y-%m-%d")
+        except ValueError:
             continue
 
-        date_obj = datetime.strptime(date_str, "%Y-%m-%d")
         for cls in classes:
-            class_time = datetime.strptime(cls["time"], "%H:%M").time()
-            class_dt = datetime.combine(date_obj.date(), class_time)
+            cls_time = datetime.strptime(cls["time"], "%H:%M").time()
+            class_dt = datetime.combine(date_obj.date(), cls_time)
             if class_dt >= now:
                 upcoming.append({
-                    "date": date_obj.strftime("%Y-%m-%d"),
+                    "date": date_str,
                     "day": date_obj.strftime("%A"),
                     "subject": cls["subject"],
                     "time": cls["time"],
@@ -89,10 +67,9 @@ def search_classes(data, date_input):
 
 
 # --------------------------
-# APP LAYOUT
+# LAYOUT
 # --------------------------
 st.title("📅 Class Tracker Dashboard")
-data = load_data()
 
 col1, col2 = st.columns([3, 2])
 
@@ -144,8 +121,8 @@ with st.form("add_class_form"):
         if date_str not in data:
             data[date_str] = []
         data[date_str].append(new_class)
-        save_data(data)
         st.success(f"✅ Added {subject} on {date_str} at {time_input.strftime('%H:%M')}")
+        st.session_state.class_data = data  # update in memory
         st.experimental_rerun()
 
 # --------------------------
@@ -153,9 +130,9 @@ with st.form("add_class_form"):
 # --------------------------
 with st.expander("📋 View All Scheduled Classes"):
     for date_str, classes in sorted(data.items()):
-        if not is_valid_date(date_str):
-            st.warning(f"Skipping invalid date entry: {date_str}")
-            continue
-        day_name = datetime.strptime(date_str, "%Y-%m-%d").strftime("%A")
+        try:
+            day_name = datetime.strptime(date_str, "%Y-%m-%d").strftime("%A")
+        except ValueError:
+            day_name = "Invalid Date"
         st.markdown(f"**{date_str} ({day_name})**")
         st.table(pd.DataFrame(classes))
