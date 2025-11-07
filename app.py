@@ -14,6 +14,42 @@ if "class_data" not in st.session_state:
         "2025-11-08": [
             {"subject": "English", "time": "9:00 AM", "teacher": "Ms. Verma"},
         ],
+        "2025-11-07": [
+            {"subject": "Mathematics", "time": "9:00 AM", "teacher": "Mr. Raj"},
+            {"subject": "Physics", "time": "10:30 AM", "teacher": "Dr. Mehta"},
+            {"subject": "Chemistry", "time": "1:00 PM", "teacher": "Ms. Kaur"},
+            {"subject": "Computer Science", "time": "3:00 PM", "teacher": "Mr. Kumar"},
+        ],
+        "2025-11-08": [
+            {"subject": "English", "time": "8:30 AM", "teacher": "Ms. Verma"},
+            {"subject": "Biology", "time": "11:00 AM", "teacher": "Dr. Singh"},
+            {"subject": "History", "time": "2:00 PM", "teacher": "Mr. Ali"},
+        ],
+        "2025-11-09": [
+            {"subject": "Geography", "time": "9:00 AM", "teacher": "Ms. Iyer"},
+            {"subject": "Political Science", "time": "11:30 AM", "teacher": "Mr. Sen"},
+        ],
+        "2025-11-10": [
+            {"subject": "Physics Lab", "time": "9:00 AM", "teacher": "Dr. Mehta"},
+            {"subject": "Mathematics", "time": "11:00 AM", "teacher": "Mr. Raj"},
+            {"subject": "Physical Education", "time": "1:30 PM", "teacher": "Coach Sharma"},
+        ],
+        "2025-11-11": [
+            {"subject": "Chemistry", "time": "9:30 AM", "teacher": "Ms. Kaur"},
+            {"subject": "English Literature", "time": "11:30 AM", "teacher": "Ms. Verma"},
+            {"subject": "Computer Lab", "time": "2:00 PM", "teacher": "Mr. Kumar"},
+        ],
+        "2025-11-12": [
+            {"subject": "Economics", "time": "9:00 AM", "teacher": "Mr. Reddy"},
+            {"subject": "Mathematics", "time": "11:30 AM", "teacher": "Mr. Raj"},
+            {"subject": "History", "time": "2:00 PM", "teacher": "Mr. Ali"},
+        ],
+        "2025-11-13": [
+            {"subject": "Physics", "time": "8:30 AM", "teacher": "Dr. Mehta"},
+            {"subject": "Computer Science", "time": "10:00 AM", "teacher": "Mr. Kumar"},
+            {"subject": "English", "time": "1:30 PM", "teacher": "Ms. Verma"},
+            {"subject": "Mathematics", "time": "3:00 PM", "teacher": "Mr. Raj"},
+        ]
     }
 
 # --- Helper Functions ---
@@ -81,3 +117,4 @@ if search_str in st.session_state.class_data:
     st.dataframe(df, use_container_width=True)
 else:
     st.warning("No classes scheduled for this date.")
+
