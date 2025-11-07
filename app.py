@@ -141,6 +141,7 @@ with tab2:
 
 # === INSIGHTS TAB ===
 # === INSIGHTS TAB ===
+# === INSIGHTS TAB ===
 with tab3:
     st.header("📈 Insights & Statistics")
     df = timetable_to_df()
@@ -150,30 +151,15 @@ with tab3:
 
         with col1:
             st.subheader("📊 Class Count by Subject")
-            subject_counts = df["Subject"].value_counts()
-            # ✅ Use pandas' .plot() safely with explicit matplotlib import
-            ax = subject_counts.plot(kind="bar", color="lightblue", edgecolor="black")
-            ax.set_xlabel("Subject")
-            ax.set_ylabel("Number of Classes")
-            plt.xticks(rotation=45, ha="right")
-            st.pyplot(plt.gcf())
-            plt.clf()
+            subject_counts = df["Subject"].value_counts().reset_index()
+            subject_counts.columns = ["Subject", "Count"]
+            st.bar_chart(subject_counts, x="Subject", y="Count")
 
         with col2:
             st.subheader("🍩 Teacher Class Share")
-            teacher_counts = df["Teacher"].value_counts()
-            ax2 = teacher_counts.plot(
-                kind="pie",
-                autopct="%1.1f%%",
-                ylabel="",
-                legend=False,
-                shadow=True,
-                startangle=90,
-                colormap="coolwarm",
-            )
-            ax2.set_title("")
-            st.pyplot(plt.gcf())
-            plt.clf()
+            teacher_counts = df["Teacher"].value_counts().reset_index()
+            teacher_counts.columns = ["Teacher", "Count"]
+            st.bar_chart(teacher_counts, x="Teacher", y="Count")
 
         st.divider()
         col3, col4, col5 = st.columns(3)
@@ -182,6 +168,7 @@ with tab3:
         col5.metric("Unique Teachers", df["Teacher"].nunique())
     else:
         st.info("No data available for insights.")
+
 
 
 
@@ -226,4 +213,5 @@ with tab4:
             st.rerun()
         except Exception as e:
             st.error(f"Upload failed: {e}")
+
 
