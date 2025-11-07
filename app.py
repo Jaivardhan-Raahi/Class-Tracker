@@ -1,11 +1,12 @@
 import streamlit as st
 import pandas as pd
-from datetime import datetime, timedelta
 import numpy as np
+import matplotlib.pyplot as plt
+from datetime import datetime, timedelta
 
 st.set_page_config(page_title="Class Tracker", layout="wide")
 
-# --- Initialize Data (Dictionary only) ---
+# --- Initialize In-Memory Data ---
 if "class_data" not in st.session_state:
     st.session_state.class_data = {
         "2025-11-07": [
@@ -67,7 +68,7 @@ def timetable_to_df():
     return pd.DataFrame(rows)
 
 
-# --- Sidebar: Add New Class ---
+# --- Sidebar: Add Class ---
 st.sidebar.header("➕ Add New Class")
 date_input = st.sidebar.date_input("Class Date", datetime.today())
 subject = st.sidebar.text_input("Subject")
@@ -89,7 +90,6 @@ tab1, tab2, tab3, tab4 = st.tabs(["🏠 Dashboard", "📅 Timetable", "📈 Insi
 with tab1:
     st.title("📚 Class Tracker Dashboard")
 
-    # Upcoming Week
     st.subheader("📆 Upcoming Week’s Classes")
     upcoming = get_upcoming_classes()
     if upcoming:
@@ -119,7 +119,6 @@ with tab2:
     st.header("📋 Full Weekly Timetable")
     df = timetable_to_df()
 
-    # Filters
     f_day = st.selectbox("Filter by Day", ["All"] + sorted(df["Day"].unique().tolist()))
     f_subject = st.selectbox("Filter by Subject", ["All"] + sorted(df["Subject"].unique().tolist()))
     f_teacher = st.selectbox("Filter by Teacher", ["All"] + sorted(df["Teacher"].unique().tolist()))
@@ -136,7 +135,6 @@ with tab2:
     else:
         st.dataframe(df.reset_index(drop=True), use_container_width=True)
 
-    # Download CSV
     csv_data = df.to_csv(index=False).encode("utf-8")
     st.download_button("📥 Download Timetable (CSV)", csv_data, "timetable.csv", "text/csv")
 
@@ -149,22 +147,37 @@ with tab3:
     if not df.empty:
         col1, col2 = st.columns(2)
 
+        # --- Bar Chart: Class Count by Subject ---
         with col1:
             st.subheader("📊 Class Count by Subject")
-            chart_data = df["Subject"].value_counts().reset_index()
-            chart_data.columns = ["Subject", "Count"]
-            st.bar_chart(chart_data.set_index("Subject"))
+            subject_counts = df["Subject"].value_counts()
+            fig1, ax1 = plt.subplots()
+            ax1.bar(subject_counts.index, subject_counts.values, color="skyblue")
+            ax1.set_xlabel("Subject")
+            ax1.set_ylabel("Number of Classes")
+            plt.xticks(rotation=45)
+            st.pyplot(fig1)
 
+        # --- Pie Chart: Teacher Share ---
         with col2:
             st.subheader("🍩 Teacher Class Share")
-            pie_data = df["Teacher"].value_counts()
-            st.write(pie_data)
-            st.pyplot(pie_data.plot(kind="pie", autopct="%1.1f%%", ylabel="").figure)
+            teacher_counts = df["Teacher"].value_counts()
+            fig2, ax2 = plt.subplots()
+            ax2.pie(
+                teacher_counts.values,
+                labels=teacher_counts.index,
+                autopct="%1.1f%%",
+                startangle=90,
+                wedgeprops={"edgecolor": "white"},
+            )
+            ax2.axis("equal")
+            st.pyplot(fig2)
 
         st.divider()
-        st.metric("Total Classes", len(df))
-        st.metric("Unique Subjects", df["Subject"].nunique())
-        st.metric("Unique Teachers", df["Teacher"].nunique())
+        col3, col4, col5 = st.columns(3)
+        col3.metric("Total Classes", len(df))
+        col4.metric("Unique Subjects", df["Subject"].nunique())
+        col5.metric("Unique Teachers", df["Teacher"].nunique())
     else:
         st.info("No data available for insights.")
 
@@ -191,7 +204,7 @@ with tab4:
     else:
         st.warning("No timetable data available to edit.")
 
-    # Upload Option
+    # Upload CSV
     st.divider()
     uploaded_file = st.file_uploader("📤 Upload a CSV timetable", type=["csv"])
     if uploaded_file:
