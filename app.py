@@ -6,6 +6,7 @@ from datetime import datetime, timedelta, time
 st.set_page_config(page_title="📚 Class Tracker", layout="wide")
 DATA_FILE = "class_data.json"
 
+
 # --------------------------
 # DATA FUNCTIONS
 # --------------------------
@@ -36,15 +37,25 @@ def save_data(data):
 # --------------------------
 # HELPERS
 # --------------------------
+def is_valid_date(date_str: str) -> bool:
+    """Check if string can be parsed as a valid date (YYYY-MM-DD)."""
+    try:
+        datetime.strptime(date_str, "%Y-%m-%d")
+        return True
+    except Exception:
+        return False
+
+
 def get_upcoming_classes(data):
     now = datetime.now()
     upcoming = []
 
     for date_str, classes in data.items():
-        try:
-            date_obj = datetime.strptime(date_str, "%Y-%m-%d")
-        except ValueError:
+        if not is_valid_date(date_str):
+            # skip legacy keys like "Monday"
             continue
+
+        date_obj = datetime.strptime(date_str, "%Y-%m-%d")
         for cls in classes:
             class_time = datetime.strptime(cls["time"], "%H:%M").time()
             class_dt = datetime.combine(date_obj.date(), class_time)
@@ -135,12 +146,16 @@ with st.form("add_class_form"):
         data[date_str].append(new_class)
         save_data(data)
         st.success(f"✅ Added {subject} on {date_str} at {time_input.strftime('%H:%M')}")
-        st.experimental_rerun()  # 🔁 Refresh to show in upcoming classes immediately
+        st.experimental_rerun()
 
 # --------------------------
 # FULL TIMETABLE
 # --------------------------
 with st.expander("📋 View All Scheduled Classes"):
     for date_str, classes in sorted(data.items()):
-        st.markdown(f"**{date_str} ({datetime.strptime(date_str, '%Y-%m-%d').strftime('%A')})**")
+        if not is_valid_date(date_str):
+            st.warning(f"Skipping invalid date entry: {date_str}")
+            continue
+        day_name = datetime.strptime(date_str, "%Y-%m-%d").strftime("%A")
+        st.markdown(f"**{date_str} ({day_name})**")
         st.table(pd.DataFrame(classes))
