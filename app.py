@@ -1,13 +1,12 @@
-# app.py
 import streamlit as st
 import pandas as pd
 from datetime import datetime, timedelta
 
 st.set_page_config(page_title="Class Tracker", layout="wide")
 
-# -------------------------
+# ------------------------- #
 # Initialize Data
-# -------------------------
+# ------------------------- #
 if "class_data" not in st.session_state:
     st.session_state.class_data = {
         "Monday": [
@@ -36,11 +35,10 @@ if "class_data" not in st.session_state:
         ],
     }
 
-# -------------------------
-# Helpers
-# -------------------------
+# ------------------------- #
+# Helper Functions
+# ------------------------- #
 def timetable_to_df():
-    """Convert dictionary to DataFrame."""
     rows = []
     for day, classes in st.session_state.class_data.items():
         for c in classes:
@@ -66,9 +64,9 @@ def delete_class(day, index):
             del st.session_state.class_data[day]
         st.rerun()
 
-# -------------------------
-# Sidebar (Add + Filter)
-# -------------------------
+# ------------------------- #
+# Sidebar (Add + Filters)
+# ------------------------- #
 st.sidebar.header("➕ Add New Class")
 
 day_choices = sorted(list(st.session_state.class_data.keys()))
@@ -95,14 +93,14 @@ f_day = st.sidebar.selectbox("Day", days)
 f_subject = st.sidebar.selectbox("Subject", subjects)
 f_teacher = st.sidebar.selectbox("Teacher", teachers)
 
-# -------------------------
+# ------------------------- #
 # Tabs
-# -------------------------
+# ------------------------- #
 tab1, tab2, tab3 = st.tabs(["🏠 Dashboard", "📅 Timetable", "📤 Download CSV"])
 
-# -------------------------
-# Dashboard
-# -------------------------
+# ------------------------- #
+# Dashboard Tab
+# ------------------------- #
 with tab1:
     st.header("Upcoming Classes (Next 7 Days)")
     today = datetime.today()
@@ -130,13 +128,14 @@ with tab1:
         else:
             st.warning("No classes found for that day.")
 
-# -------------------------
-# Timetable
-# -------------------------
+# ------------------------- #
+# Timetable Tab
+# ------------------------- #
 with tab2:
     st.header("Full Weekly Timetable")
     df = timetable_to_df()
 
+    # Apply filters
     if f_day != "All":
         df = df[df["Day"] == f_day]
     if f_subject != "All":
@@ -147,12 +146,4 @@ with tab2:
     if df.empty:
         st.info("No data for selected filters.")
     else:
-        st.dataframe(df.reset_index(drop=True), use_container_width=True)
-
-# -------------------------
-# CSV Download
-# -------------------------
-with tab3:
-    st.header("Download Timetable")
-    df = timetable_to_df()
-    if
+        st.dataframe(df.reset_index(drop=True), use_conta
