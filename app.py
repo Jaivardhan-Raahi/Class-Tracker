@@ -1,6 +1,7 @@
 import streamlit as st
 import pandas as pd
 from datetime import datetime, timedelta
+import numpy as np
 
 st.set_page_config(page_title="Class Tracker", layout="wide")
 
@@ -80,13 +81,15 @@ if st.sidebar.button("Add Class"):
     else:
         st.sidebar.error("⚠️ Fill all fields first.")
 
-# --- Main Dashboard Tabs ---
-tab1, tab2, tab3 = st.tabs(["🏠 Dashboard", "📅 Full Timetable", "📥 Upload / Export"])
 
+# --- Tabs ---
+tab1, tab2, tab3, tab4 = st.tabs(["🏠 Dashboard", "📅 Timetable", "📈 Insights", "✏️ Edit / Upload"])
+
+# === DASHBOARD TAB ===
 with tab1:
     st.title("📚 Class Tracker Dashboard")
 
-    # Upcoming week
+    # Upcoming Week
     st.subheader("📆 Upcoming Week’s Classes")
     upcoming = get_upcoming_classes()
     if upcoming:
@@ -98,7 +101,7 @@ with tab1:
     else:
         st.info("No upcoming classes in the next 7 days.")
 
-    # Search by date
+    # Search by Date
     st.divider()
     st.subheader("🔍 Search Classes by Date")
     search_date = st.date_input("Select a date to search")
@@ -111,21 +114,15 @@ with tab1:
         st.warning("No classes scheduled for this date.")
 
 
+# === TIMETABLE TAB ===
 with tab2:
     st.header("📋 Full Weekly Timetable")
-
     df = timetable_to_df()
 
-    # --- Filters ---
-    f_day = st.selectbox(
-        "Filter by Day", ["All"] + sorted(df["Day"].unique().tolist())
-    )
-    f_subject = st.selectbox(
-        "Filter by Subject", ["All"] + sorted(df["Subject"].unique().tolist())
-    )
-    f_teacher = st.selectbox(
-        "Filter by Teacher", ["All"] + sorted(df["Teacher"].unique().tolist())
-    )
+    # Filters
+    f_day = st.selectbox("Filter by Day", ["All"] + sorted(df["Day"].unique().tolist()))
+    f_subject = st.selectbox("Filter by Subject", ["All"] + sorted(df["Subject"].unique().tolist()))
+    f_teacher = st.selectbox("Filter by Teacher", ["All"] + sorted(df["Teacher"].unique().tolist()))
 
     if f_day != "All":
         df = df[df["Day"] == f_day]
@@ -139,15 +136,64 @@ with tab2:
     else:
         st.dataframe(df.reset_index(drop=True), use_container_width=True)
 
-    # --- Download as CSV ---
+    # Download CSV
     csv_data = df.to_csv(index=False).encode("utf-8")
     st.download_button("📥 Download Timetable (CSV)", csv_data, "timetable.csv", "text/csv")
 
 
+# === INSIGHTS TAB ===
 with tab3:
-    st.header("📤 Upload or Replace Timetable")
+    st.header("📈 Insights & Statistics")
+    df = timetable_to_df()
 
-    uploaded_file = st.file_uploader("Upload a CSV timetable", type=["csv"])
+    if not df.empty:
+        col1, col2 = st.columns(2)
+
+        with col1:
+            st.subheader("📊 Class Count by Subject")
+            chart_data = df["Subject"].value_counts().reset_index()
+            chart_data.columns = ["Subject", "Count"]
+            st.bar_chart(chart_data.set_index("Subject"))
+
+        with col2:
+            st.subheader("🍩 Teacher Class Share")
+            pie_data = df["Teacher"].value_counts()
+            st.write(pie_data)
+            st.pyplot(pie_data.plot(kind="pie", autopct="%1.1f%%", ylabel="").figure)
+
+        st.divider()
+        st.metric("Total Classes", len(df))
+        st.metric("Unique Subjects", df["Subject"].nunique())
+        st.metric("Unique Teachers", df["Teacher"].nunique())
+    else:
+        st.info("No data available for insights.")
+
+
+# === EDIT / UPLOAD TAB ===
+with tab4:
+    st.header("✏️ Edit or Upload Timetable")
+    df = timetable_to_df()
+
+    if not df.empty:
+        edited_df = st.data_editor(df, num_rows="dynamic", use_container_width=True)
+        if st.button("💾 Save Changes"):
+            new_dict = {}
+            for _, row in edited_df.iterrows():
+                date_str = str(row["Date"])
+                if date_str not in new_dict:
+                    new_dict[date_str] = []
+                new_dict[date_str].append(
+                    {"subject": row["Subject"], "time": row["Time"], "teacher": row["Teacher"]}
+                )
+            st.session_state.class_data = new_dict
+            st.success("✅ Changes saved successfully!")
+            st.rerun()
+    else:
+        st.warning("No timetable data available to edit.")
+
+    # Upload Option
+    st.divider()
+    uploaded_file = st.file_uploader("📤 Upload a CSV timetable", type=["csv"])
     if uploaded_file:
         try:
             new_df = pd.read_csv(uploaded_file)
@@ -157,11 +203,7 @@ with tab3:
                 if date_str not in new_dict:
                     new_dict[date_str] = []
                 new_dict[date_str].append(
-                    {
-                        "subject": row["Subject"],
-                        "time": row["Time"],
-                        "teacher": row["Teacher"],
-                    }
+                    {"subject": row["Subject"], "time": row["Time"], "teacher": row["Teacher"]}
                 )
             st.session_state.class_data = new_dict
             st.success("✅ Timetable replaced successfully!")
