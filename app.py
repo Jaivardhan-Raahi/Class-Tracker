@@ -8,13 +8,6 @@ st.set_page_config(page_title="Class Tracker", layout="wide")
 if "class_data" not in st.session_state:
     st.session_state.class_data = {
         "2025-11-07": [
-            {"subject": "Math", "time": "10:00 AM", "teacher": "Mr. Raj"},
-            {"subject": "Physics", "time": "12:00 PM", "teacher": "Dr. Mehta"},
-        ],
-        "2025-11-08": [
-            {"subject": "English", "time": "9:00 AM", "teacher": "Ms. Verma"},
-        ],
-        "2025-11-07": [
             {"subject": "Mathematics", "time": "9:00 AM", "teacher": "Mr. Raj"},
             {"subject": "Physics", "time": "10:30 AM", "teacher": "Dr. Mehta"},
             {"subject": "Chemistry", "time": "1:00 PM", "teacher": "Ms. Kaur"},
@@ -49,7 +42,7 @@ if "class_data" not in st.session_state:
             {"subject": "Computer Science", "time": "10:00 AM", "teacher": "Mr. Kumar"},
             {"subject": "English", "time": "1:30 PM", "teacher": "Ms. Verma"},
             {"subject": "Mathematics", "time": "3:00 PM", "teacher": "Mr. Raj"},
-        ]
+        ],
     }
 
 # --- Helper Functions ---
@@ -57,9 +50,12 @@ def get_upcoming_classes():
     today = datetime.today().date()
     upcoming = {}
     for date_str, classes in st.session_state.class_data.items():
-        class_date = datetime.strptime(date_str, "%Y-%m-%d").date()
-        if today <= class_date <= today + timedelta(days=7):
-            upcoming[date_str] = classes
+        try:
+            class_date = datetime.strptime(date_str, "%Y-%m-%d").date()
+            if today <= class_date <= today + timedelta(days=7):
+                upcoming[date_str] = classes
+        except ValueError:
+            continue
     return upcoming
 
 
@@ -70,7 +66,21 @@ def add_class(date, subject, time, teacher):
     st.session_state.class_data[date_str].append(
         {"subject": subject, "time": time, "teacher": teacher}
     )
-    st.rerun()  # Refresh the app after adding
+    st.rerun()
+
+
+def flatten_class_data():
+    rows = []
+    for date_str, classes in st.session_state.class_data.items():
+        for cls in classes:
+            rows.append({
+                "Date": date_str,
+                "Day": datetime.strptime(date_str, "%Y-%m-%d").strftime("%A"),
+                "Subject": cls["subject"],
+                "Time": cls["time"],
+                "Teacher": cls["teacher"]
+            })
+    return pd.DataFrame(rows)
 
 
 # --- Sidebar: Add New Class ---
@@ -83,9 +93,9 @@ teacher = st.sidebar.text_input("Teacher Name")
 if st.sidebar.button("Add Class"):
     if subject and time and teacher:
         add_class(date_input, subject, time, teacher)
-        st.sidebar.success("Class added successfully!")
+        st.sidebar.success("✅ Class added successfully!")
     else:
-        st.sidebar.error("Please fill all fields before adding.")
+        st.sidebar.error("⚠️ Please fill all fields before adding.")
 
 
 # --- Main Dashboard ---
@@ -98,7 +108,7 @@ upcoming = get_upcoming_classes()
 if upcoming:
     for date_str, classes in sorted(upcoming.items()):
         weekday = datetime.strptime(date_str, "%Y-%m-%d").strftime("%A")
-        st.markdown(f"**{date_str} ({weekday})**")
+        st.markdown(f"### {date_str} ({weekday})")
         df = pd.DataFrame(classes)
         st.dataframe(df, use_container_width=True)
 else:
@@ -118,3 +128,17 @@ if search_str in st.session_state.class_data:
 else:
     st.warning("No classes scheduled for this date.")
 
+
+# --- Download Timetable ---
+st.divider()
+st.subheader("📥 Download Timetable")
+
+df_all = flatten_class_data()
+csv = df_all.to_csv(index=False).encode("utf-8")
+
+st.download_button(
+    label="⬇️ Download Full Timetable as CSV",
+    data=csv,
+    file_name="class_timetable.csv",
+    mime="text/csv"
+)
