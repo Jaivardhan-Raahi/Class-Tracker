@@ -140,6 +140,7 @@ with tab2:
 
 
 # === INSIGHTS TAB ===
+# === INSIGHTS TAB ===
 with tab3:
     st.header("📈 Insights & Statistics")
     df = timetable_to_df()
@@ -147,31 +148,32 @@ with tab3:
     if not df.empty:
         col1, col2 = st.columns(2)
 
-        # --- Bar Chart: Class Count by Subject ---
         with col1:
             st.subheader("📊 Class Count by Subject")
             subject_counts = df["Subject"].value_counts()
-            fig1, ax1 = plt.subplots()
-            ax1.bar(subject_counts.index, subject_counts.values, color="skyblue")
-            ax1.set_xlabel("Subject")
-            ax1.set_ylabel("Number of Classes")
-            plt.xticks(rotation=45)
-            st.pyplot(fig1)
+            # ✅ Use pandas' .plot() safely with explicit matplotlib import
+            ax = subject_counts.plot(kind="bar", color="lightblue", edgecolor="black")
+            ax.set_xlabel("Subject")
+            ax.set_ylabel("Number of Classes")
+            plt.xticks(rotation=45, ha="right")
+            st.pyplot(plt.gcf())
+            plt.clf()
 
-        # --- Pie Chart: Teacher Share ---
         with col2:
             st.subheader("🍩 Teacher Class Share")
             teacher_counts = df["Teacher"].value_counts()
-            fig2, ax2 = plt.subplots()
-            ax2.pie(
-                teacher_counts.values,
-                labels=teacher_counts.index,
+            ax2 = teacher_counts.plot(
+                kind="pie",
                 autopct="%1.1f%%",
+                ylabel="",
+                legend=False,
+                shadow=True,
                 startangle=90,
-                wedgeprops={"edgecolor": "white"},
+                colormap="coolwarm",
             )
-            ax2.axis("equal")
-            st.pyplot(fig2)
+            ax2.set_title("")
+            st.pyplot(plt.gcf())
+            plt.clf()
 
         st.divider()
         col3, col4, col5 = st.columns(3)
@@ -180,6 +182,7 @@ with tab3:
         col5.metric("Unique Teachers", df["Teacher"].nunique())
     else:
         st.info("No data available for insights.")
+
 
 
 # === EDIT / UPLOAD TAB ===
@@ -223,3 +226,4 @@ with tab4:
             st.rerun()
         except Exception as e:
             st.error(f"Upload failed: {e}")
+
